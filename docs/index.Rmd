@@ -1,36 +1,85 @@
 ---
-title: "Untitled"
-output: 
-  flexdashboard::flex_dashboard:
-    orientation: columns
-    vertical_layout: fill
+title: "Test1. ASA>3 mo only(NSAID 제외) against stomach cancer"
+date: "`r Sys.Date()`"
+output:
+  xaringan::moon_reader:
+    css: ["css/footer-header.css", "default"]
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "4:3" 
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
-library(flexdashboard)
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(echo = FALSE, fig.align = "center")
+library(knitr);library(DT);library(dplyr);library(data.table);library(rmarkdown);library(readr);library(purrr);library(tidyr)
 ```
 
-Column {data-width=650}
------------------------------------------------------------------------
+layout: true
 
-### Chart A
+```{r, include = F}
+#setwd("/home/js/Homepage/cdmkdh/docs")
+ref <- readRDS(paste0("result/outcomeModelReference.rds"))
+fig.att <- grep("attritionDiagram", list.files("result"), value = T)
+fig.attstrata <- grep("Strata", fig.att, value = T)
+fig.att <- list(setdiff(fig.att, fig.attstrata), fig.attstrata)
+    
+fig.covbal <- grep("covBal", list.files("result"), value = T)
+fig.covalscatter <- grep("Scatter", fig.covbal, value = T)
+fig.covbal <-list(setdiff(fig.covbal, fig.covalscatter), fig.covalscatter)
+      
+fig.psplot <- grep("propensityScorePlot", list.files("result"), value = T) 
+fig.psstrata <- grep("Strata", fig.psplot, value = T)
+fig.psplot <- list(setdiff(fig.psplot, fig.psstrata), fig.psstrata)
+    
+fig.km <-  grep("kaplanMeier", list.files("result"), value = T) 
+
+```
+
+---
+# Study flow
+
+.pull-left[
+```{r, out.width="120%", fig.cap="Before matching"}
+include_graphics(paste0("result/",fig.att[[1]][1]))
+
+```
+]
+
+.pull-right[
+```{r, out.width="120%",  fig.cap="After matching"}
+include_graphics(paste0("result/",fig.att[[2]][1]))
+
+```
+]
+
+---
+# Data: Before matching
 
 ```{r}
-
+datatable(readRDS(paste0(getwd(), ref$psFile)), rownames = F, filter = "top", extensions= "Buttons", caption = "Original cohort", 
+              options = c(jstable::opt.data("data_original"), list(scrollX = TRUE)))
 ```
 
-Column {data-width=350}
------------------------------------------------------------------------
-
-### Chart B
+---
+# Data: After matching
 
 ```{r}
-
+datatable(readRDS(paste0(getwd(), ref$strataFile)), rownames = F, filter = "top", extensions= "Buttons", caption = "Matching cohort", 
+              options = c(jstable::opt.data("data_ps"), list(scrollX = TRUE)))
 ```
 
-### Chart C
 
-```{r}
 
-```
+---
+
+class: center, middle
+
+# END
+
 
