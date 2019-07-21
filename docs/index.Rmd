@@ -1,28 +1,18 @@
 ---
-title: "Test1. ASA>3 mo only(NSAID 제외) against stomach cancer"
-date: "`r Sys.Date()`"
-output:
-  xaringan::moon_reader:
-    css: ["css/footer-header.css", "default"]
-    lib_dir: libs
-    nature:
-      highlightStyle: github
-      highlightLines: true
-      countIncrementalSlides: false
-      ratio: "4:3" 
+title: "ASA>3 mo only(NSAID 제외): 위암"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    social: menu
+    source_code: embed
 editor_options: 
   chunk_output_type: console
 ---
-
 ```{r setup, include=FALSE}
 options(htmltools.dir.version = FALSE)
 knitr::opts_chunk$set(echo = FALSE, fig.align = "center")
-library(knitr);library(DT);library(dplyr);library(data.table);library(rmarkdown);library(readr);library(purrr);library(tidyr)
-```
+library(knitr);library(DT);library(dplyr);library(data.table);library(flexdashboard);library(kableExtra)
 
-layout: true
-
-```{r, include = F}
 #setwd("/home/js/Homepage/cdmkdh/docs")
 ref <- readRDS(paste0("result/outcomeModelReference.rds"))
 fig.att <- grep("attritionDiagram", list.files("result"), value = T)
@@ -38,48 +28,117 @@ fig.psstrata <- grep("Strata", fig.psplot, value = T)
 fig.psplot <- list(setdiff(fig.psplot, fig.psstrata), fig.psstrata)
     
 fig.km <-  grep("kaplanMeier", list.files("result"), value = T) 
-
 ```
 
----
-# Study flow
 
-.pull-left[
-```{r, out.width="120%", fig.cap="Before matching"}
+Study flow
+=======================================================================
+
+Column
+-----------------------------------------------------------------------
+
+### Before matching
+
+```{r}
 include_graphics(paste0("result/",fig.att[[1]][1]))
 
 ```
-]
 
-.pull-right[
-```{r, out.width="120%",  fig.cap="After matching"}
+
+### After matching
+
+```{r}
 include_graphics(paste0("result/",fig.att[[2]][1]))
 
 ```
-]
 
----
-# Data: Before matching
+
+
+
+Matching info
+=======================================================================
+
+Column{.tabset}
+-----------------------------------------------------------------------
+
+### Balance table
 
 ```{r}
-datatable(readRDS(paste0(getwd(), ref$psFile)), rownames = F, filter = "top", extensions= "Buttons", caption = "Original cohort", 
-              options = c(jstable::opt.data("data_original"), list(scrollX = TRUE)))
+out.bal <- readRDS(paste0(getwd(), ref$covariateBalanceFile))
+it <- 2
+ic <- 3
+bal.before <- sapply(c(it, ic), function(x){paste0(out.bal[, x + 2], " (", round(100 * out.bal[, x], 1), "%)")})
+bal.after <- sapply(c(it, ic), function(x){paste0(out.bal[, x + 7], " (", round(100 * out.bal[, x + 5], 1), "%)")})
+    
+out.tb <- data.frame(out.bal[, 12], bal.before, round(out.bal[, 15], 1 + 2), bal.after, round(out.bal[, 16], 1 + 2), out.bal[, c(1, 13, 14)])
+out.tb[out.tb == "NA (NA%)"] <- NA
+names(out.tb)[1:7] <- c("Covariate", "Treated_before", "Comparator_before", "SMD_before", "Treated_after", "Comparator_after", "SMD_after")
+
+datatable(out.tb, rownames = F, filter = "top", extensions= "Buttons", caption = "Balance table for PS matching", 
+              options = c(jstable::opt.data("data_balance"), list(scrollX = TRUE))) 
 ```
 
----
-# Data: After matching
+
+### Balance plot
 
 ```{r}
-datatable(readRDS(paste0(getwd(), ref$strataFile)), rownames = F, filter = "top", extensions= "Buttons", caption = "Matching cohort", 
-              options = c(jstable::opt.data("data_ps"), list(scrollX = TRUE)))
+include_graphics(paste0("result/",fig.covbal[[1]][1]))
+```
+
+### SMD distribution
+
+```{r}
+include_graphics(paste0("result/",fig.covbal[[2]][1]))
+```
+
+### PS distributuin
+
+```{r,  fig.show = "hold", out.width = "50%", fig.align = "default"}
+include_graphics(paste0("result/",fig.psplot[[1]][1]))
+include_graphics(paste0("result/",fig.psplot[[2]][1]))
 ```
 
 
+Model outcome
+=======================================================================
 
----
+```{r, include=F}
+res <- readRDS(paste0(getwd(), ref$outcomeModelFile))
+```
 
-class: center, middle
+Column{.tabset}
+-----------------------------------------------------------------------
 
-# END
+### Kaplan-meier plot
+
+```{r}
+include_graphics(paste0("result/", "kaplanMeier.png"))
+```
+
+### Cox result
+
+```{r}
+hr <- res$outcomeModelTreatmentEstimate
+pv <- 2 * (1 - pnorm(abs(hr$logRr/hr$seLogRr)))
+pv <- ifelse(pv < 0.001, "< 0.001", round(pv, 3))
+tb.hr <- data.table(`HR (95% CI)` = paste0(round(exp(hr$logRr), 2), " (", round(exp(hr$logLb95), 2), "-", round(exp(hr$logUb95), 2), ")"), `P value` = pv)
+kable(tb.hr, row.names = F, caption = "Hazard ratio") %>%
+  kable_styling(full_width = F)
+
+datatable(data.frame(Covariates = names(res[["psModelCoef"]]), HR = round(exp(res[["psModelCoef"]]), 2)),  rownames = F, filter = "top", extensions= "Buttons", caption = "PS model coefficients", 
+          options = c(jstable::opt.data("psModelCoef"), list(scrollX = TRUE))) %>% 
+  formatRound(2, digits = 3)
+```
+
+### Others
+
+```{r}
+tb.oth <- t(data.frame(as.integer(res$populationCounts[, 2:3]), as.integer(res$timeAtRisk), as.integer(res$outcomeCounts[5:6])))
+colnames(tb.oth) <- c("Treated", "Comparator")
+rownames(tb.oth) <- c("Population", "Time at Risk", "Event")
+
+kable(tb.oth, row.names = T, caption = "Other info") %>%
+  kable_styling(full_width = F)
+```
 
 
